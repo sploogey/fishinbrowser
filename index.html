@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fishing in a Browser — Cast, Catch, Conquer</title>
+<meta name="description" content="A browser-based fishing game. Catch fish, sell your haul, upgrade your rod, join clans, and haggle with shady dealers.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sky-top: #1a0a2e;
+  --sky-mid: #2d1b69;
+  --sky-low: #e8734a;
+  --horizon: #ffc371;
+  --ocean-top: #1a5276;
+  --ocean-mid: #0e3d5c;
+  --ocean-deep: #091b2a;
+  --sand: #f4d9a0;
+  --palm-trunk: #5c3d1e;
+  --palm-leaf: #1a6b3c;
+  --accent: #3ee8b5;
+  --accent-glow: #3ee8b540;
+  --gold: #ffd96a;
+  --coral: #ff6b6b;
+  --text: #f0f0f0;
+  --muted: #a0b8cc;
+  --card: #0e2a42;
+  --card-border: #1a4060;
+  --deep: #091b2a;
+  --font-display: 'Bangers', cursive;
+  --font-body: 'DM Sans', sans-serif;
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--ocean-deep);
+  color: var(--text);
+  font-family: var(--font-body);
+  overflow-x: hidden;
+  line-height: 1.6;
+}
+
+/* ══════════════════════════════════════
+   SCENE — full viewport illustrated hero
+   ══════════════════════════════════════ */
+.scene {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  min-height: 600px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+/* ── Sky gradient ── */
+.sky {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    var(--sky-top) 0%,
+    var(--sky-mid) 30%,
+    var(--sky-low) 52%,
+    var(--horizon) 58%,
+    var(--ocean-top) 58.5%,
+    var(--ocean-mid) 75%,
+    var(--ocean-deep) 100%
+  );
+}
+
+/* ── Sun ── */
+.sun {
+  position: absolute;
+  width: clamp(80px, 12vw, 140px);
+  height: clamp(80px, 12vw, 140px);
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff5c0 0%, #ffb347 40%, #ff6b3560 80%, transparent 100%);
+  top: 28%;
+  left: 50%;
+  transform: translateX(-50%);
+  box-shadow:
+    0 0 60px 20px #ffb34780,
+    0 0 120px 60px #ff6b3530,
+    0 0 200px 100px #ff6b3515;
+  animation: sunPulse 6s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes sunPulse {
+  0%, 100% { box-shadow: 0 0 60px 20px #ffb34780, 0 0 120px 60px #ff6b3530, 0 0 200px 100px #ff6b3515; }
+  50% { box-shadow: 0 0 80px 30px #ffb34790, 0 0 140px 70px #ff6b3540, 0 0 220px 110px #ff6b3520; }
+}
+
+/* ── Sun reflection on water ── */
+.sun-reflection {
+  position: absolute;
+  top: 58%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: clamp(40px, 8vw, 80px);
+  height: 42%;
+  background: linear-gradient(180deg, #ffb34740 0%, #ffb34720 30%, transparent 100%);
+  filter: blur(8px);
+  z-index: 1;
+}
+
+/* ── Stars ── */
+.stars {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.star {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: #fff;
+  border-radius: 50%;
+  animation: twinkle 3s ease-in-out infinite;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.9; }
+}
+
+/* ── Clouds ── */
+.cloud {
+  position: absolute;
+  z-index: 2;
+  opacity: 0.25;
+  filter: blur(1px);
+}
+
+.cloud div {
+  position: absolute;
+  background: #ffeedd;
+  border-radius: 50%;
+}
+
+.cloud-1 { top: 12%; animation: cloudDrift 50s linear infinite; left: -200px; }
+.cloud-2 { top: 20%; animation: cloudDrift 70s linear infinite; animation-delay: -20s; left: -200px; }
+.cloud-3 { top: 8%; animation: cloudDrift 60s linear infinite; animation-delay: -35s; left: -200px; }
+
+@keyframes cloudDrift {
+  from { transform: translateX(-200px); }
+  to { transform: translateX(calc(100vw + 200px)); }
+}
+
+/* ── Birds ── */
+.birds {
+  position: absolute;
+  z-index: 5;
+  top: 18%;
+  animation: birdsFly 22s linear infinite;
+  left: -120px;
+}
+
+.bird {
+  position: absolute;
+  width: 20px;
+  height: 6px;
+}
+
+.bird::before, .bird::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 10px;
+  height: 6px;
+  border-top: 2.5px solid #1a0a2e;
+  border-radius: 50% 50% 0 0;
+}
+
+.bird::before { left: 0; transform: rotate(-20deg); }
+.bird::after { right: 0; transform: rotate(20deg); }
+
+.bird:nth-child(1) { top: 0; left: 0; }
+.bird:nth-child(2) { top: -12px; left: 28px; transform: scale(0.7); }
+.bird:nth-child(3) { top: 8px; left: 50px; transform: scale(0.85); }
+.bird:nth-child(4) { top: -6px; left: 72px; transform: scale(0.6); }
+.bird:nth-child(5) { top: 14px; left: 20px; transform: scale(0.5); }
+
+@keyframes birdsFly {
+  from { transform: translateX(-120px) translateY(0); }
+  to { transform: translateX(calc(100vw + 200px)) translateY(-30px); }
+}
+
+/* second flock offset */
+.birds-2 {
+  top: 24%;
+  animation-duration: 28s;
+  animation-delay: -10s;
+  opacity: 0.6;
+  transform: scale(0.6);
+}
+
+/* ── Island (left) ── */
+.island-left {
+  position: absolute;
+  bottom: 42%;
+  left: -2%;
+  z-index: 3;
+  width: clamp(200px, 28vw, 380px);
+}
+
+.island-ground {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 40px;
+  background: var(--sand);
+  border-radius: 60% 80% 0 0 / 100% 100% 0 0;
+}
+
+.island-ground::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 10%;
+  width: 80%;
+  height: 12px;
+  background: #e6c882;
+  border-radius: 50% 50% 0 0;
+}
+
+/* ── Palm trees ── */
+.palm {
+  position: absolute;
+  bottom: 28px;
+}
+
+.palm-trunk-el {
+  width: 10px;
+  height: 100px;
+  background: linear-gradient(90deg, #4a3018 0%, var(--palm-trunk) 40%, #6b4c2a 100%);
+  border-radius: 4px;
+  transform: rotate(-5deg);
+  transform-origin: bottom center;
+  position: relative;
+}
+
+/* trunk segments */
+.palm-trunk-el::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent 0px, transparent 10px, #4a301840 10px, #4a301840 12px);
+  border-radius: 4px;
+}
+
+.palm-fronds {
+  position: absolute;
+  top: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.frond {
+  position: absolute;
+  width: 70px;
+  height: 18px;
+  background: var(--palm-leaf);
+  border-radius: 0 80% 0 80%;
+  transform-origin: 0% 100%;
+}
+
+.frond::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #24854a 0%, var(--palm-leaf) 40%, #145a28 100%);
+  border-radius: inherit;
+  opacity: 0.7;
+}
+
+.frond:nth-child(1) { transform: rotate(-70deg); }
+.frond:nth-child(2) { transform: rotate(-35deg) scaleX(-1); }
+.frond:nth-child(3) { transform: rotate(-20deg); left: -5px; }
+.frond:nth-child(4) { transform: rotate(-55deg) scaleX(-1); left: -5px; }
+.frond:nth-child(5) { transform: rotate(-5deg); left: 2px; width: 60px; }
+.frond:nth-child(6) { transform: rotate(-80deg) scaleX(-1); width: 55px; }
+
+.palm-1 { left: 30%; }
+.palm-1 .palm-trunk-el { height: 110px; transform: rotate(-8deg); }
+
+.palm-2 { left: 55%; }
+.palm-2 .palm-trunk-el { height: 80px; transform: rotate(3deg); }
+.palm-2 .frond { width: 55px; }
+
+/* sway animation */
+.palm-1 .frond { animation: sway 4s ease-in-out infinite; }
+.palm-2 .frond { animation: sway 5s ease-in-out infinite reverse; }
+
+@keyframes sway {
+  0%, 100% { transform-origin: 0% 100%; }
+  50% { filter: brightness(1.1); }
+}
+
+/* ── Boat ── */
+.boat-group {
+  position: absolute;
+  bottom: 38%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  animation: boatBob 4s ease-in-out infinite;
+}
+
+@keyframes boatBob {
+  0%, 100% { transform: translateX(-50%) translateY(0) rotate(0deg); }
+  25% { transform: translateX(-50%) translateY(-6px) rotate(1.5deg); }
+  75% { transform: translateX(-50%) translateY(4px) rotate(-1deg); }
+}
+
+.boat {
+  position: relative;
+  width: clamp(120px, 18vw, 200px);
+}
+
+/* Hull */
+.hull {
+  width: 100%;
+  height: 30px;
+  background: linear-gradient(180deg, #8b4513 0%, #6b3410 100%);
+  border-radius: 0 0 50% 50% / 0 0 100% 100%;
+  position: relative;
+  border-top: 3px solid #a0522d;
+}
+
+.hull::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 15%;
+  width: 70%;
+  height: 4px;
+  background: #a0522d;
+  border-radius: 2px;
+}
+
+/* Deck */
+.deck {
+  position: absolute;
+  top: -8px;
+  left: 10%;
+  width: 80%;
+  height: 8px;
+  background: #c4956a;
+  border-radius: 2px 2px 0 0;
+}
+
+/* cabin */
+.cabin {
+  position: absolute;
+  top: -28px;
+  left: 25%;
+  width: 22px;
+  height: 20px;
+  background: linear-gradient(180deg, #d4a574 0%, #b8865a 100%);
+  border-radius: 2px 2px 0 0;
+}
+
+.cabin::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 4px;
+  width: 6px;
+  height: 6px;
+  background: #87CEEB80;
+  border: 1px solid #a0522d;
+  border-radius: 1px;
+}
+
+/* ── Fisherman ── */
+.fisherman {
+  position: absolute;
+  top: -46px;
+  right: 15%;
+}
+
+/* body */
+.fisher-body {
+  position: relative;
+  width: 14px;
+  height: 22px;
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+  border-radius: 4px 4px 2px 2px;
+}
+
+/* head */
+.fisher-head {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 13px;
+  background: #deb887;
+  border-radius: 50%;
+}
+
+/* hat */
+.fisher-hat {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 5px;
+  background: #dc2626;
+  border-radius: 2px;
+}
+
+.fisher-hat::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 8px;
+  background: #dc2626;
+  border-radius: 4px 4px 0 0;
+}
+
+/* ── Fishing rod ── */
+.rod {
+  position: absolute;
+  top: -38px;
+  right: -50px;
+  width: 70px;
+  height: 2px;
+  background: linear-gradient(90deg, #6b4c2a, #a0825a);
+  transform: rotate(-30deg);
+  transform-origin: 0% 50%;
+  border-radius: 1px;
+}
+
+/* fishing line */
+.fishing-line {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 1px;
+  height: 80px;
+  background: linear-gradient(180deg, #ccc 0%, #ffffff60 100%);
+  transform-origin: top;
+}
+
+/* bobber */
+.bobber {
+  position: absolute;
+  bottom: -6px;
+  left: -3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #ff4444, #cc0000);
+  animation: bobberBob 2s ease-in-out infinite;
+}
+
+.bobber::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+  height: 4px;
+  background: #ccc;
+}
+
+@keyframes bobberBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(4px); }
+}
+
+/* ── Ocean waves (foreground) ── */
+.ocean-waves {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 42%;
+  z-index: 3;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.wave-layer {
+  position: absolute;
+  width: 200%;
+  left: -50%;
+}
+
+.wave-layer svg {
+  width: 100%;
+  display: block;
+}
+
+.wave-1 {
+  top: 0;
+  animation: waveMove 8s linear infinite;
+  opacity: 0.15;
+}
+
+.wave-2 {
+  top: 12px;
+  animation: waveMove 12s linear infinite reverse;
+  opacity: 0.1;
+}
+
+.wave-3 {
+  top: 24px;
+  animation: waveMove 10s linear infinite;
+  animation-delay: -3s;
+  opacity: 0.08;
+}
+
+@keyframes waveMove {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* ── Underwater fish silhouettes ── */
+.underwater-fish {
+  position: absolute;
+  z-index: 2;
+  opacity: 0.08;
+  animation: swimAcross linear infinite;
+}
+
+.underwater-fish svg { fill: #fff; }
+
+.ufish-1 { bottom: 15%; animation-duration: 18s; }
+.ufish-2 { bottom: 25%; animation-duration: 25s; animation-delay: -8s; transform: scaleX(-1); }
+.ufish-3 { bottom: 8%; animation-duration: 22s; animation-delay: -14s; }
+
+@keyframes swimAcross {
+  from { left: -60px; }
+  to { left: calc(100% + 60px); }
+}
+
+/* ── Island right (small, distant) ── */
+.island-right {
+  position: absolute;
+  bottom: 42%;
+  right: -1%;
+  z-index: 2;
+  width: clamp(120px, 14vw, 200px);
+  opacity: 0.5;
+}
+
+.island-right .island-ground {
+  height: 20px;
+  border-radius: 70% 50% 0 0 / 100% 100% 0 0;
+}
+
+.island-right .palm .palm-trunk-el { height: 50px; width: 6px; }
+.island-right .palm .frond { width: 35px; height: 10px; }
+.island-right .palm { left: 40%; }
+
+/* ══════════════════════
+   HERO TEXT OVERLAY
+   ══════════════════════ */
+.hero-content {
+  position: relative;
+  z-index: 10;
+  text-align: center;
+  padding-top: clamp(40px, 8vh, 80px);
+}
+
+.hero-hook {
+  display: inline-block;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: clamp(11px, 1.6vw, 14px);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 12px;
+  opacity: 0;
+  animation: fadeUp 0.8s ease forwards 0.3s;
+  text-shadow: 0 2px 12px #0008;
+}
+
+.hero-content h1 {
+  font-family: var(--font-display);
+  font-size: clamp(48px, 10vw, 110px);
+  line-height: 1.0;
+  color: #fff;
+  letter-spacing: 3px;
+  text-shadow:
+    0 4px 20px #0006,
+    0 0 60px #ff6b3530;
+  opacity: 0;
+  animation: fadeUp 0.8s ease forwards 0.5s;
+}
+
+.hero-content h1 .shimmer {
+  background: linear-gradient(120deg, var(--accent) 0%, var(--gold) 45%, #fff 55%, var(--accent) 100%);
+  background-size: 300% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 5s linear infinite;
+  filter: drop-shadow(0 4px 20px #0006);
+}
+
+@keyframes shimmer {
+  to { background-position: 300% center; }
+}
+
+.hero-sub {
+  font-size: clamp(14px, 2.2vw, 20px);
+  color: #ffffffcc;
+  max-width: 500px;
+  margin: 16px auto 32px;
+  text-shadow: 0 2px 10px #0008;
+  opacity: 0;
+  animation: fadeUp 0.8s ease forwards 0.7s;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+  opacity: 0;
+  animation: fadeUp 0.8s ease forwards 0.9s;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Scroll hint ── */
+.scroll-hint {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #ffffff80;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  opacity: 0;
+  animation: fadeUp 0.8s ease forwards 1.4s;
+}
+
+.scroll-hint .line {
+  width: 1px;
+  height: 28px;
+  background: linear-gradient(to bottom, var(--gold), transparent);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; transform: scaleY(1); }
+  50% { opacity: 1; transform: scaleY(1.3); }
+}
+
+/* ══════════════════
+   BUTTONS
+   ══════════════════ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 34px;
+  border: none;
+  border-radius: 60px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.2s, box-shadow 0.3s;
+}
+
+.btn:hover { transform: translateY(-2px); }
+.btn:active { transform: translateY(0); }
+
+.btn-play {
+  background: linear-gradient(135deg, var(--accent), #2bc4a0);
+  color: var(--deep);
+  box-shadow: 0 4px 30px var(--accent-glow), 0 0 60px var(--accent-glow);
+}
+
+.btn-play:hover {
+  box-shadow: 0 6px 40px var(--accent-glow), 0 0 100px var(--accent-glow);
+}
+
+.btn-ghost {
+  background: #ffffff15;
+  color: #fff;
+  border: 2px solid #ffffff30;
+  backdrop-filter: blur(6px);
+}
+
+.btn-ghost:hover {
+  border-color: #ffffff50;
+  background: #ffffff20;
+}
+
+/* ══════════════════════
+   BELOW-THE-FOLD SECTIONS
+   ══════════════════════ */
+.page-below {
+  position: relative;
+  z-index: 5;
+  background: linear-gradient(180deg, var(--ocean-deep) 0%, #060e18 100%);
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ── Features ── */
+.features { padding: 100px 0; }
+
+.section-label {
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 5vw, 50px);
+  text-align: center;
+  margin-bottom: 60px;
+  line-height: 1.2;
+  letter-spacing: 1px;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.feature-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 20px;
+  padding: 36px 28px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s, border-color 0.3s;
+}
+
+.feature-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent);
+}
+
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.feature-card:hover::before { opacity: 1; }
+
+.feature-icon {
+  font-size: 40px;
+  margin-bottom: 16px;
+  display: block;
+}
+
+.feature-card h3 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.feature-card p {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* ── Catch strip ── */
+.catches { padding: 80px 0 100px; }
+
+.catch-strip {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding: 8px 0 20px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--card) transparent;
+}
+
+.catch-chip {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 60px;
+  padding: 12px 24px 12px 16px;
+  white-space: nowrap;
+  transition: border-color 0.3s, transform 0.2s;
+}
+
+.catch-chip:hover {
+  border-color: var(--accent);
+  transform: scale(1.04);
+}
+
+.catch-emoji { font-size: 28px; }
+
+.catch-info strong { display: block; font-size: 15px; }
+.catch-info span { font-size: 13px; color: var(--gold); font-weight: 700; }
+.catch-info small { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* ── CTA ── */
+.cta { padding: 100px 0 120px; text-align: center; }
+
+.cta-box {
+  background: linear-gradient(135deg, var(--card) 0%, #0a1e30 100%);
+  border: 1px solid var(--card-border);
+  border-radius: 28px;
+  padding: 80px 40px;
+  position: relative;
+  overflow: hidden;
+}
+
+.cta-box::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 30px;
+  padding: 2px;
+  background: linear-gradient(135deg, var(--accent), transparent 40%, transparent 60%, var(--gold));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.cta h2 {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 5vw, 50px);
+  margin-bottom: 16px;
+  letter-spacing: 1px;
+}
+
+.cta p {
+  color: var(--muted);
+  font-size: 18px;
+  margin-bottom: 36px;
+}
+
+/* ── Footer ── */
+footer {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  border-top: 1px solid #ffffff08;
+}
+
+footer span { color: var(--coral); }
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+  .island-left { left: -8%; width: 160px; }
+  .island-right { display: none; }
+  .boat-group { left: 55%; }
+  .btn { padding: 12px 26px; font-size: 18px; }
+  .feature-card { padding: 28px 22px; }
+  .cta-box { padding: 50px 24px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ SCENE ═══════════════ -->
+<section class="scene">
+
+  <!-- Sky -->
+  <div class="sky"></div>
+
+  <!-- Stars (in the dark part of the sky) -->
+  <div class="stars" aria-hidden="true"></div>
+
+  <!-- Sun -->
+  <div class="sun" aria-hidden="true"></div>
+  <div class="sun-reflection" aria-hidden="true"></div>
+
+  <!-- Clouds -->
+  <div class="cloud cloud-1" aria-hidden="true">
+    <div style="width:80px;height:30px;top:10px;left:0;"></div>
+    <div style="width:60px;height:40px;top:0;left:20px;"></div>
+    <div style="width:70px;height:28px;top:12px;left:50px;"></div>
+  </div>
+  <div class="cloud cloud-2" aria-hidden="true">
+    <div style="width:50px;height:20px;top:8px;left:0;"></div>
+    <div style="width:40px;height:30px;top:0;left:15px;"></div>
+    <div style="width:45px;height:22px;top:6px;left:35px;"></div>
+  </div>
+  <div class="cloud cloud-3" aria-hidden="true">
+    <div style="width:90px;height:32px;top:10px;left:0;"></div>
+    <div style="width:70px;height:44px;top:0;left:25px;"></div>
+    <div style="width:60px;height:26px;top:14px;left:60px;"></div>
+  </div>
+
+  <!-- Birds -->
+  <div class="birds" aria-hidden="true">
+    <div class="bird"></div>
+    <div class="bird"></div>
+    <div class="bird"></div>
+    <div class="bird"></div>
+    <div class="bird"></div>
+  </div>
+  <div class="birds birds-2" aria-hidden="true">
+    <div class="bird"></div>
+    <div class="bird"></div>
+    <div class="bird"></div>
+  </div>
+
+  <!-- Island left with palm trees -->
+  <div class="island-left" aria-hidden="true">
+    <div class="palm palm-1">
+      <div class="palm-fronds">
+        <div class="frond"></div>
+        <div class="frond"></div>
+        <div class="frond"></div>
+        <div class="frond"></div>
+        <div class="frond"></div>
+        <div class="frond"></div>
+      </div>
+      <div class="palm-trunk-el"></div>
+    </div>
+    <div class="palm palm-2">
+      <div class="palm-fronds">
+        <div class="frond"></div>
+        <div class="frond"></div>
+        <div class="frond"></div>
+        <div class="frond"></div>
+        <div class="frond"></div>
+        <div class="frond"></div>
+      </div>
+      <div class="palm-trunk-el"></div>
+    </div>
+    <div class="island-ground"></div>
+  </div>
+
+  <!-- Distant island right -->
+  <div class="island-right" aria-hidden="true">
+    <div class="palm" style="left:40%">
+      <div class="palm-fronds">
+        <div class="frond"></div>
+        <div class="frond"></div>
+        <div class="frond"></div>
+        <div class="frond"></div>
+      </div>
+      <div class="palm-trunk-el"></div>
+    </div>
+    <div class="island-ground"></div>
+  </div>
+
+  <!-- Boat with fisherman -->
+  <div class="boat-group" aria-hidden="true">
+    <div class="boat">
+      <!-- Fisherman -->
+      <div class="fisherman">
+        <div class="fisher-hat"></div>
+        <div class="fisher-head"></div>
+        <div class="fisher-body"></div>
+        <!-- Rod -->
+        <div class="rod">
+          <div class="fishing-line">
+            <div class="bobber"></div>
+          </div>
+        </div>
+      </div>
+      <!-- Cabin -->
+      <div class="cabin"></div>
+      <!-- Deck & Hull -->
+      <div class="deck"></div>
+      <div class="hull"></div>
+    </div>
+  </div>
+
+  <!-- Underwater fish silhouettes -->
+  <div class="underwater-fish ufish-1" aria-hidden="true">
+    <svg width="40" height="20" viewBox="0 0 40 20"><path d="M0 10 Q10 0 20 4 Q30 0 35 6 L40 10 L35 14 Q30 20 20 16 Q10 20 0 10Z"/></svg>
+  </div>
+  <div class="underwater-fish ufish-2" aria-hidden="true">
+    <svg width="30" height="16" viewBox="0 0 40 20"><path d="M0 10 Q10 0 20 4 Q30 0 35 6 L40 10 L35 14 Q30 20 20 16 Q10 20 0 10Z"/></svg>
+  </div>
+  <div class="underwater-fish ufish-3" aria-hidden="true">
+    <svg width="22" height="12" viewBox="0 0 40 20"><path d="M0 10 Q10 0 20 4 Q30 0 35 6 L40 10 L35 14 Q30 20 20 16 Q10 20 0 10Z"/></svg>
+  </div>
+
+  <!-- Ocean wave overlays -->
+  <div class="ocean-waves" aria-hidden="true">
+    <div class="wave-layer wave-1">
+      <svg viewBox="0 0 1200 30" preserveAspectRatio="none"><path d="M0 15 Q150 0 300 15 Q450 30 600 15 Q750 0 900 15 Q1050 30 1200 15 V30 H0Z" fill="#fff"/></svg>
+    </div>
+    <div class="wave-layer wave-2">
+      <svg viewBox="0 0 1200 30" preserveAspectRatio="none"><path d="M0 15 Q150 30 300 15 Q450 0 600 15 Q750 30 900 15 Q1050 0 1200 15 V30 H0Z" fill="#fff"/></svg>
+    </div>
+    <div class="wave-layer wave-3">
+      <svg viewBox="0 0 1200 30" preserveAspectRatio="none"><path d="M0 10 Q200 25 400 10 Q600 -5 800 10 Q1000 25 1200 10 V30 H0Z" fill="#fff"/></svg>
+    </div>
+  </div>
+
+  <!-- Hero text overlay -->
+  <div class="hero-content">
+    <span class="hero-hook">A browser-based fishing adventure</span>
+    <h1>Fishing in<br>a <span class="shimmer">Browser</span></h1>
+    <p class="hero-sub">Cast your line, reel in rare catches, upgrade your gear, and haggle with shady fish dealers.</p>
+    <div class="hero-actions">
+      <a href="Fishing_in_a_browser.html" class="btn btn-play">Play Now</a>
+      <a href="#features" class="btn btn-ghost">See Features</a>
+    </div>
+  </div>
+
+  <div class="scroll-hint" aria-hidden="true">
+    <div class="line"></div>
+    scroll
+  </div>
+
+</section>
+
+<!-- ═══════════════ BELOW THE FOLD ═══════════════ -->
+<div class="page-below">
+
+  <!-- Features -->
+  <section class="features" id="features">
+    <div class="container">
+      <div class="section-label">What's inside</div>
+      <h2 class="section-title">More than just clicking a button</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <span class="feature-icon" aria-hidden="true">🎣</span>
+          <h3>Cast & Catch</h3>
+          <p>Hit the FISH button and see what bites. From worthless boots to legendary swordfish, every cast is a gamble.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon" aria-hidden="true">🏪</span>
+          <h3>Sell & Upgrade</h3>
+          <p>Sell your haul at the shop, save up cash, and upgrade your fishing rod to unlock rarer catches.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon" aria-hidden="true">🪱</span>
+          <h3>Bait System</h3>
+          <p>Buy normal bait to target specific fish, or try scammer bait for unpredictable results.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon" aria-hidden="true">🤝</span>
+          <h3>Fish Bargain</h3>
+          <p>Enter the bargain minigame and bid against a rival buyer. Win the fish or lose your money trying.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon" aria-hidden="true">⚔️</span>
+          <h3>Clans & Quests</h3>
+          <p>Create or join a clan, complete fishing quests together, and boost your catch rates as a team.</p>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon" aria-hidden="true">💾</span>
+          <h3>Save Progress</h3>
+          <p>Your game auto-saves. Back up your clan with restore codes so you never lose your crew.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Catch strip -->
+  <section class="catches">
+    <div class="container">
+      <div class="section-label">The haul</div>
+      <h2 class="section-title">What's in the water?</h2>
+      <div class="catch-strip">
+        <div class="catch-chip">
+          <span class="catch-emoji">🥾</span>
+          <div class="catch-info"><strong>Boot</strong><span>$0</span><small>Just a single boot, worthless.</small></div>
+        </div>
+        <div class="catch-chip">
+          <span class="catch-emoji">👟</span>
+          <div class="catch-info"><strong>Shoe</strong><span>$25</span><small>Ok. You can MAYBE sell this.</small></div>
+        </div>
+        <div class="catch-chip">
+          <span class="catch-emoji">🐟</span>
+          <div class="catch-info"><strong>Small Fish</strong><span>$100</span><small>So small you can't even tell what it is.</small></div>
+        </div>
+        <div class="catch-chip">
+          <span class="catch-emoji">🐟</span>
+          <div class="catch-info"><strong>Small Bass</strong><span>$400</span><small>Hey, at least you got SOME cash.</small></div>
+        </div>
+        <div class="catch-chip">
+          <span class="catch-emoji">🐠</span>
+          <div class="catch-info"><strong>Bass</strong><span>$1,000</span><small>That's pretty good!</small></div>
+        </div>
+        <div class="catch-chip">
+          <span class="catch-emoji">✨</span>
+          <div class="catch-info"><strong>Goldfish</strong><span>$2,500</span><small>REALLY good, also isn't that what Nemo is?</small></div>
+        </div>
+        <div class="catch-chip">
+          <span class="catch-emoji">🐡</span>
+          <div class="catch-info"><strong>Pufferfish</strong><span>$5,000</span><small>Spiky, I'm lucky I wore gloves.</small></div>
+        </div>
+        <div class="catch-chip">
+          <span class="catch-emoji">🐱</span>
+          <div class="catch-info"><strong>Catfish</strong><span>$15,000</span><small>Big whiskers, big catch.</small></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta">
+    <div class="container">
+      <div class="cta-box">
+        <h2>Ready to cast?</h2>
+        <p>No downloads. No signups. Just fish.</p>
+        <a href="Fishing_in_a_browser.html" class="btn btn-play">Start Fishing</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      Made with <span>&hearts;</span> by a young game developer
+    </div>
+  </footer>
+
+</div>
+
+<script>
+// ── Generate stars in the dark upper sky ──
+(function() {
+  const container = document.querySelector('.stars');
+  for (let i = 0; i < 60; i++) {
+    const star = document.createElement('div');
+    star.className = 'star';
+    star.style.left = Math.random() * 100 + '%';
+    star.style.top = Math.random() * 35 + '%';
+    star.style.animationDelay = (Math.random() * 5) + 's';
+    star.style.animationDuration = (2 + Math.random() * 3) + 's';
+    const size = 1 + Math.random() * 2.5;
+    star.style.width = size + 'px';
+    star.style.height = size + 'px';
+    container.appendChild(star);
+  }
+})();
+
+// ── Scroll-triggered reveals ──
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.style.opacity = '1';
+      entry.target.style.transform = 'translateY(0)';
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.feature-card, .catch-chip').forEach((el, i) => {
+  el.style.opacity = '0';
+  el.style.transform = 'translateY(20px)';
+  el.style.transition = 'opacity 0.5s ease ' + (i * 0.08) + 's, transform 0.5s ease ' + (i * 0.08) + 's';
+  observer.observe(el);
+});
+</script>
+
+</body>
+</html>
